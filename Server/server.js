@@ -44,7 +44,7 @@ io.on('connection', (socket) => {
         });
       }
     }
-  })});
+  });
 
   // handle the "create game" event from the client
   socket.on('createGame', () => {
@@ -128,5 +128,166 @@ io.on('connection', (socket) => {
 });
 
 
+// Game class to represent a UNO game
+class Game {
+  constructor(creator) {
+    this.id = Date.now();
+    this.creator = creator;
+    this.players = [];
+    this.deck = this.createDeck();
+    this.discardPile = [];
+    this.currentTurn = 0;
+    this.started = false;
+    this.gameEnded = false;
+  }
+
+  // create a new deck of UNO cards
+  createDeck() {
+    const deck = [];
+    const colors = ['red', 'yellow', 'green', 'blue'];
+    const values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 'Skip', 'Reverse', 'Draw Two'];
+    for (const color of colors) {
+      for (const value of values) {
+        deck.push({ color, value });
+      }
+    }
+    for (const value of ['Wild', 'Wild Draw Four']) {
+      for (let i = 0; i < 4; i++) {
+        deck.push({ color: 'black', value });
+      }
+    }
+    return this.shuffle(deck);
+  }
+
+  // shuffle an array in place using the Fisher-Yates shuffle
+  shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  // add a player to the game
+  addPlayer(socket) {
+    this.players.push({
+      id: socket.id,
+      socket,
+      hand: [],
+    });
+  }
+
+  // remove a player from the game
+  removePlayer(playerId) {
+    this.players = this.players.filter((player) => player.id !== playerId);
+  }
+
+  // check if the game has the given player
+  hasPlayer(playerId) {
+    return this.players.some((player) => player.id === playerId);
+  }
+
+  // start the game
+  start() {
+    // deal 7 cards to each player
+    for (let i = 0; i < 7; i++) {
+      this.players.forEach((player) => {
+        player.hand.push(this.deck.pop());
+      });
+    }
+
+    // add the first card to the discard pile
+    this.discardPile.push(this.deck.pop());
+
+    this.started = true;
+  }
+
+  // play a card
+  playCard(playerId, card) {
+    // ...
+
+    switch (card.value) {
+      // ...
+      case 'Wild':
+      case 'Wild Draw Four':
+        // store the player's chosen color in a temporary variable
+        playerId.chosenColor = card.chosenColor;
+        // skip the current player's turn
+        this.currentTurn = (this.currentTurn + 1) % this.players.length;
+        break;
+      default:
+        // move to the next player's turn
+        this.currentTurn = (this.currentTurn + 1) % this.players.length;
+        break;
+    }
+
+    // check if the player has won
+    if (player.hand.length === 0) {
+      this.gameEnded = true;
+    }
+
+    return this.getState();
+  }
+
+  // draw a card
+  drawCard(playerId) {
+    // find the player who drew the card
+    const player = this.players.find((player) => player.id === playerId);
+    if (!player) {
+      return;
+    }
+
+    // check if the player can draw a card
+    if (!this.canDrawCard(player)) {
+      player.socket.emit('cannotDrawCard');
+      return this.getState();
+    }
+
+    // draw a card and add it to the player's hand
+    player.hand.push(this.deck.pop());
+
+    // move to the next player's turn
+    this.currentTurn = (this.currentTurn + 1) % this.players.length;
+
+    return this.getState();
+  }
+
+  // check if a card is valid to play
+  isValidCard(card) {
+    const topCard = this.discardPile[this.discardPile.length - 1];
+    if (card.color === topCard.color || card.value === topCard.value || card.color === 'black') {
+      return true;
+    }
+    return false;
+  }
+
+  // check if a player can draw a card
+  canDrawCard(player) {
+    const topCard = this.discardPile[this.discardPile.length - 1];
+    return !player.hand.some((card) => this.isValidCard(card));
+  }
+
+  // get the current state of the game
+  getState() {
+    return {
+      id: this.id,
+      creator: this.creator,
+      players: this.players.map((player) => ({
+        id: player.id,
+        hand: player.hand,
+      })),
+      deckSize: this.deck.length,
+      discardPile: this.discardPile,
+      currentTurn: this.players[this.currentTurn].id,
+      started: this.started,
+      gameEnded: this.gameEnded,
+    };
+  }
+
+  // check if the game should end
+  shouldEnd() {
+    return this.players.length === 0;
+  }
+}});
 
 http.listen(8080, () => console.log('listening on http://localhost:8080') );
