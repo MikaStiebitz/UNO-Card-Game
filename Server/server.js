@@ -45,3 +45,88 @@ io.on('connection', (socket) => {
       }
     }
   })});
+
+  // handle the "create game" event from the client
+  socket.on('createGame', () => {
+    console.log(`Client ${socket.id} creating a new game`);
+
+    // create a new game and add it to the list of active games
+    const game = new Game(socket.id);
+    games.push(game);
+
+    // add the client as the first player of the game
+    game.addPlayer(socket);
+    let tmp_id = game.id;
+    console.log(tmp_id);
+    // notify the client that they have successfully created a new game
+    socket.emit('gameCreated', tmp_id);
+  });
+
+  // handle the "join game" event from the client
+  socket.on('joinGame', (gameId) => {
+    console.log(`Client ${socket.id} joining game ${gameId}`);
+
+    // find the game that the client wants to join
+    const game = games.find((game) => game.id == gameId);
+    console.log(game);
+    if (!game) {
+      // if no such game exists, notify the client
+      socket.emit('invalidGameId');
+      return;
+    }
+
+    // add the client as a player of the game
+    game.addPlayer(socket);
+
+    // send the game state to the new player
+    socket.emit('gameJoined', game.getState());
+
+  // handle the "start game" event from the client
+  socket.on('startGame', () => {
+    console.log(`Client ${socket.id} starting game ${game.id}`);
+
+    // start the game
+    game.start();
+
+    // send the updated game state to all players
+    game.players.forEach((player) => {
+      player.socket.emit('gameStarted', game.getState());
+    });
+  });
+
+  // handle the "play card" event from the client
+  socket.on('playCard', (card) => {
+    console.log(`Client ${socket.id} playing card ${card.color} ${card.value} in game ${game.id}`);
+
+    // play the card and get the updated game state
+    const state = game.playCard(socket.id, card);
+
+    // send the updated game state to all players
+    game.players.forEach((player) => {
+      player.socket.emit('gameUpdated', state);
+    });
+
+    // check if the game has ended
+    if (state.gameEnded) {
+      // if the game has ended, remove it from the list of active games
+      games = games.filter((g) => g.id !== game.id);
+    }
+  });
+
+  // handle the "draw card" event from the client
+  socket.on('drawCard', () => {
+    console.log(`Client ${socket.id} drawing a card in game ${game.id}`);
+
+    // draw a card and get the updated game state
+    const state = game.drawCard(socket.id);
+
+    // send the updated game state to all players
+    game.players.forEach((player) => {
+      player.socket.emit('gameUpdated', state);
+    });
+  });
+});
+
+
+
+http.listen(8080, () => console.log('listening on http://localhost:8080') );
