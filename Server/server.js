@@ -202,16 +202,36 @@ class Game {
     this.started = true;
   }
 
+
+  
+
   // play a card
   playCard(playerId, card) {
-    // ...
+
+    // find the player who played the card
+    const player = this.players.find((player) => player.id === playerId);
+    if (!player) {
+      return;
+    }
+
+    // check if the card is valid to play
+    if (!this.isValidCard(card)) {
+      player.socket.emit('invalidCard');
+      return this.getState();
+    }
+
+    // remove the card from the player's hand
+    player.hand = player.hand.filter((c) => c !== card);
+
+    // add the card to the discard pile
+    this.discardPile.push(card);
 
     switch (card.value) {
       // ...
       case 'Wild':
       case 'Wild Draw Four':
         // store the player's chosen color in a temporary variable
-        playerId.chosenColor = card.chosenColor;
+        player.chosenColor = card.chosenColor;
         // skip the current player's turn
         this.currentTurn = (this.currentTurn + 1) % this.players.length;
         break;
@@ -255,6 +275,9 @@ class Game {
   // check if a card is valid to play
   isValidCard(card) {
     const topCard = this.discardPile[this.discardPile.length - 1];
+    console.log("=");
+    console.log(topCard);
+    console.log("=");
     if (card.color === topCard.color || card.value === topCard.value || card.color === 'black') {
       return true;
     }
