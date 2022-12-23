@@ -1,88 +1,108 @@
 const socket = io("http://localhost:8080");
 
-// handle the "updateGamesList" event from the server
-socket.on("updateGamesList", (games) => {
-  console.log(`Available games: ${games}`);
-});
+let gameId;
+let hand;
+let players;
+let currentTurn;
+let deckSize;
+let discardPile;
+let gameStarted;
+let gameEnded;
 
 // handle the "gameCreated" event from the server
-socket.on("gameCreated", (gameId) => {
-  localStorage.setItem("gameID", gameId);
-  console.log(`Game created: ${gameId}`);
+socket.on('gameCreated', (id) => {
+  console.log(`Game created with id ${id}`);
+  gameId = id;
 });
 
-// handle the "gameJoined" event from the server
-socket.on("gameJoined", (state) => {
-  console.log(`Game joined: ${state}`);
+// handle the "playerJoined" event from the server
+socket.on('playerJoined', (state) => {
+  console.log(`Player joined`);
+  ({ players, currentTurn, deckSize, discardPile, gameStarted, gameEnded } = state);
 });
 
 // handle the "gameStarted" event from the server
-socket.on("gameStarted", (state) => {
-  console.log(`Game started: ${state}`);
+socket.on('gameStarted', (state) => {
+  console.log(`Game started`);
+  ({ players, currentTurn, deckSize, discardPile, gameStarted, gameEnded } = state);
+  hand = players.find((player) => player.id === socket.id).hand;
 });
 
-// handle the "gameUpdated" event from the server
-socket.on("gameUpdated", (state) => {
-  console.log(`Game updated: ${state}`);
+// handle the "cardPlayed" event from the server
+socket.on('cardPlayed', (state) => {
+  console.log(`Card played`);
+  ({ players, currentTurn, deckSize, discardPile, gameStarted, gameEnded } = state);
+  hand = players.find((player) => player.id === socket.id).hand;
 });
 
 // handle the "playerDisconnected" event from the server
-socket.on("playerDisconnected", (playerId) => {
-  console.log(`Player disconnected: ${playerId}`);
+socket.on('playerDisconnected', (state) => {
+  console.log(`Player disconnected`);
+  ({ players, currentTurn, deckSize, discardPile, gameStarted, gameEnded } = state);
 });
 
-// handle the "invalidGameId" event from the server
-socket.on("invalidGameId", () => {
-  console.log("Invalid game id");
-});
+function createGame() {
+  socket.emit('createGame');
+}
 
-// handle the "invalidCard" event from the server
-socket.on("invalidCard", () => {
-  console.log("Invalid card");
-});
-  
-// handle the "cannotDrawCard" event from the server
-socket.on("cannotDrawCard", () => {
-  console.log("Cannot draw card");
-});
+function joinGame(id) {
+  socket.emit('joinGame', id);
+}
 
-socket.emit("createGame");
+function startGame() {
+  socket.emit('startGame', gameId);
+}
 
+function playCard(card) {
+  let tmp_data = {
+    card : card,
+    id : gameId
+  }
+  console.log(tmp_data.id);
+  socket.emit('playCard', tmp_data);
+}
 
+// render the game
+function render() {
+  // initialize the hand array if it is not defined
+  if (!hand) {
+    hand = [];
+  }
+  if (!discardPile) {
+    discardPile = [];
+  }
+  // display the player's hand
+  const handElem = document.getElementById('hand');
+  handElem.innerHTML = '';
+  hand.forEach((card) => {
+    const cardElem = document.createElement('div');
+    cardElem.className = `card ${card.color}`;
+    cardElem.innerHTML = card.value;
+    cardElem.addEventListener('click', () => {
+      playCard(card);
+    });
+    handElem.appendChild(cardElem);
+  });
 
-let button = document.getElementById("jn_btn");
+  // display the current turn
+  const currentTurnElem = document.getElementById('current-turn');
+  currentTurnElem.innerHTML = `Current turn: ${currentTurn + 1}`;
 
-// Attach a click event handler to the button
-button.addEventListener("click", function() {
-  // Get the value of the input element with the ID "inputId"
-  let inputValue = document.getElementById("gameINP").value;
+  // display the deck size
+  const deckSizeElem = document.getElementById('deck-size');
+  deckSizeElem.innerHTML = `Deck size: ${deckSize}`;
 
-  // Do something with the input value
-  console.log("hidddd" + inputValue);
-  socket.emit("joinGame", inputValue);
-});
+  // display the top card of the discard pile
+  const discardPileElem = document.getElementById('discard-pile');
+  discardPileElem.innerHTML = '';
+  const topCard = discardPile[discardPile.length - 1];
+  if (topCard) {
+    const topCardElem = document.createElement('div');
+    topCardElem.className = 'card';
+    topCardElem.style.backgroundColor = topCard.color;
+    topCardElem.innerHTML = topCard.value;
+    discardPileElem.appendChild(topCardElem);
+  }
+}
 
-
-  // Get the value of the input element with the ID "inputId"
-
-// create a new game
-
-
-// join an existing game
-
-
-// start the game (assuming the client is the creator of the game)
-socket.emit("startGame");
-
-// play a card
-
-
-let button1 = document.getElementById("play_card");
-
-// Attach a click event handler to the button
-button1.addEventListener("click", function() {
-  socket.emit("playCard", { color: "red", value: 3 });
-});
-
-// draw a card
-socket.emit("drawCard");
+setInterval(render, 1000);

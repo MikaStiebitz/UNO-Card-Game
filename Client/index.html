@@ -1,14 +1,46 @@
 <html>
   <head>
-    <title>UNO Game</title>
+    <title>UNO</title>
+    <style>
+      .card {
+        display: inline-block;
+        width: 50px;
+        height: 75px;
+        border: 1px solid black;
+        border-radius: 5px;
+        text-align: center;
+        line-height: 75px;
+        font-size: 24px;
+        color: white;
+        margin: 5px;
+      }
+      .red {
+        background-color: red;
+      }
+      .green {
+        background-color: green;
+      }
+      .blue {
+        background-color: blue;
+      }
+      .yellow {
+        background-color: yellow;
+      }
+    </style>
   </head>
   <body>
-    <h1>UNO Game</h1>
-    <input type="text" id="gameINP"></input>
-    <button type="submit" id="jn_btn">Join Game</button>
-    <button type="submit" id="play_card">card</button>
+    <div id="hand"></div>
+    <div id="current-turn"></div>
+    <div id="deck-size"></div>
+    <div id="discard-pile"></div>
+    <button onclick="createGame()">Create Game</button>
+    <form onsubmit="joinGame(gameId.value); return false;">
+      <label for="gameId">Game ID:</label>
+      <input type="text" id="gameId" name="gameId">
+      <input type="submit" value="Join Game">
+    </form>
+    <button onclick="startGame()">Start Game</button>
     <script src="https://cdn.socket.io/socket.io-3.0.0.js"></script>
-    <script src="client.js"></script>
-    
+    <script src="/Client/client.js"></script>
   </body>
 </html>
